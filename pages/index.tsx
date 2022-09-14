@@ -1,9 +1,67 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
+import { useEffect, useState } from "react";
+import { Types, AptosClient, AptosAccount, CoinClient } from "aptos";
+
+const client = new AptosClient("https://fullnode.testnet.aptoslabs.com/v1");
+const coinClient = new CoinClient(client);
 
 const Home: NextPage = () => {
+  const [account, setAccount] = useState<Types.AccountData | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [chainId, setChainId] = useState<number | null>(null);
+  const [modules, setModules] = useState<Types.MoveModuleBytecode[]>([]);
+
+  const handleWalletConnect = async () => {
+    const status = await (window as any).aptos.isConnected();
+    const result = await (window as any).aptos.connect();
+    console.log(result);
+    setAddress(result.address);
+    const chainId = await client.getChainId();
+    console.log(chainId);
+    setChainId(chainId);
+    const modules = await client.getAccountModules(result.address);
+    console.log(modules);
+    setModules(modules);
+    return result;
+
+    // @note check for is connected or not
+    // if (status == false) {
+    //   const result = await (window as any).aptos.connect();
+    //   console.log(result);
+    //   setAddress(result.address);
+    //   return result;
+    // }
+    // console.log(status);
+    // return status;
+  };
+
+  const handleWalletDisconnect = async () => {
+    const status = await (window as any).aptos.isConnected();
+    status ? (window as any).aptos.disconnect() : null;
+    setAddress(null);
+    console.log("disconnected");
+  };
+
+  // set address in state storage
+  // useEffect(() => {
+  //   window.aptos.account().then((data : {address: string}) => setAddress(data.address));
+  //   }, []);
+
+  // get account data
+  useEffect(() => {
+    if (!address) {
+      setAccount(null);
+      return;
+    }
+    client.getAccount(address).then(setAccount);
+  
+    // coinClient.checkBalance(new AptosAccount(address)).then(setBalance);
+  }, [address]);
+
   return (
     <div className={styles.container}>
       <Head>
@@ -13,44 +71,25 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+        {address == null ? (
+          <button onClick={handleWalletConnect}>connect wallet</button>
+        ) : (
+          <button onClick={handleWalletDisconnect}>disconnect wallet</button>
+        )}
 
         <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
+          Your address is <code className={styles.code}>{address}</code>
         </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+        <p className={styles.description}>
+          Your sequence number is{" "}
+          <code className={styles.code}>{account?.sequence_number}</code>
+        </p>
+        <p className={styles.description}>
+          Your balance is <code className={styles.code}>{balance}</code>
+        </p>
+        <p className={styles.description}>
+          The Chain ID is <code className={styles.code}>{chainId}</code>
+        </p>
       </main>
 
       <footer className={styles.footer}>
@@ -59,14 +98,14 @@ const Home: NextPage = () => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span className={styles.logo}>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
         </a>
       </footer>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
